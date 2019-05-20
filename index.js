@@ -96,3 +96,37 @@ app.listen(3030, () => console.log('Started listener on port 3030'))
 
 process.on('uncaughtException', err => console.log('uncaughtException:', err))
 process.on('unhandledRejection', err => console.log('unhandledRejection:', err))
+
+const isRunningInNodemon = !process.stdin.setRawMode
+
+if (isRunningInNodemon) return
+
+// https://stackoverflow.com/questions/50430908/listen-for-command-ctrl-l-signal-in-terminal
+process.stdin.currentLine = '';
+process.stdin.setRawMode(true);
+process.stdin.on('data', (buf) => {
+  const charAsAscii = buf.toString().charCodeAt(0);
+
+  switch (charAsAscii) {
+    case 0x03:
+      process.kill(process.pid, 'SIGINT');
+      break;
+
+    case 0x04:
+      process.exit(0);
+      break;
+
+    case 0x0c:
+      process.stdout.write('\033c');
+      break;
+
+    case 0x0d:
+      process.stdin.emit('line', process.stdin.currentLine);
+      process.stdin.currentLine = '';
+      break;
+
+    default:
+      process.stdin.currentLine += String.fromCharCode(charAsAscii);
+      break;
+  }
+});

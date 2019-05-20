@@ -12,15 +12,19 @@ Uses iTerms `img-cat`, so install that first.
 
 ### Public URL
 
-As Team Watcher uses Slack Events you need to add a public endpoint, e.g. using ngrok.
+As Team Watcher uses Slack Events you need to add a public endpoint, e.g. using `ngrok` or `serveo.net`.
 
 When started correctly ngrok will output something like this:
 
 `Forwarding                    http://a1b2c3d4.ngrok.io -> http://localhost:3030` <--- the ngrok URL is the important one
 
+Serveo would output something like this:
+
+`Forwarding HTTP traffic from https://foo-bar-baz.serveo.net`
+
 ## Installation
 
-1. After setting up `ngrok` to forward to port 3030 (or change the port in the source), start by running `yarn start`
+1. After setting up `ngrok` to forward to port 3030 (or change the port in the source), start by running `node index.js`
 2. Create a file called `local.json` in the folder where this `README.md`
 3. Go to https://api.slack.com/apps
 4. Create App. Choose any `App Name`. Choose your workspace as the `Development Slack Workspace`
@@ -37,6 +41,6 @@ When started correctly ngrok will output something like this:
   "SLACK_BOT_USER_OAUTH_ACCESS_TOKEN": "xoxb-...."
 }
 ```
-11. Shut down your app and start it again (so that it can read the tokens)
+11. Shut down your app and start it again (so that it can read the tokens you just set)
 
 Now you should be able to see the messages coming in 🤡
