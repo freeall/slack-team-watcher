@@ -49,8 +49,8 @@ app.post('/', bodyParser.json(), async (req, res) => {
   res.send('ok')
 
   try {
-    if (isMessage) return onMessage(event)
-    if (isProbablyUnfurledLink) return onUnfurledLink(event)
+    if (isMessage) return await onMessage(event)
+    if (isProbablyUnfurledLink) return await onUnfurledLink(event)
 
     console.log('DID NOT UNDERSTAND SLACK EVENT:', JSON.stringify(slackEvent))
   } catch (err) {
