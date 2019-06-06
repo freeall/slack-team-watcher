@@ -19,7 +19,7 @@ const slack = new WebClient(process.env.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN)
 
 const channelToStr = channel => chalk.red(`#${channel}`)
 const userToStr = user => chalk.green.bold(`@${user}`)
-const botToStr = bot => `${chalk.green.bold(`@${bot}`)} ${chalk.white.bgGrey('APP')}`
+const botToStr = bot => `${chalk.green.bold(`@${bot}`)} ${chalk.black.bgWhite('APP')}`
 const urlToStr = url => chalk.cyan.underline(url)
 const getUser = memoize(user => slack.users.info({ user }))
 const getBot = memoize(bot => slack.bots.info({ bot }))
@@ -43,8 +43,8 @@ app.post('/', bodyParser.json(), async (req, res) => {
   const { type, challenge, event } = slackEvent
 
   const isUrlVerification = type === 'url_verification'
-  const isUserMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.sub_type !== 'bot_message'
-  const isBotMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.sub_type === 'bot_message'
+  const isUserMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.subtype !== 'bot_message'
+  const isBotMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.subtype === 'bot_message'
   const isProbablyUnfurledLink = type === 'event_callback' && event.type === 'message' && event.hidden && event.message.attachments
 
   if (isUrlVerification) return res.send(challenge)
@@ -79,7 +79,7 @@ async function onMessage({ nameStr, profileImage, event }) {
 
 async function onBotMessage(event) {
   const { bot } = await getBot(event.bot_id)
-  const { data: profileImage } = await getPublicImage(bot.icons.image_36)
+  const { data: profileImage } = await getPublicImage(bot.icons.image_24 || bot.icons.image_36 || bot.icons.image_48 || bot.icons.image_64 || bot.icons.image_72)
   const nameStr = botToStr(bot.name)
 
   await onMessage({ nameStr, profileImage, event })
@@ -87,7 +87,7 @@ async function onBotMessage(event) {
 
 async function onUserMessage (event) {
   const { user } = await getUser(event.user)
-  const { data: profileImage } = await getPublicImage(user.profile.image_24)
+  const { data: profileImage } = await getPublicImage(user.profile.image_24 || user.profile.image_36 || user.profile.image_48 || user.profile.image_64 || user.profile.image_72)
   const nameStr = userToStr(user.name)
 
   await onMessage({ nameStr, profileImage, event })
@@ -95,7 +95,7 @@ async function onUserMessage (event) {
 
 async function onUnfurledLink(event) {
   const attachments = await Promise.all(event.message.attachments.map(async attachment => {
-    const { data: thumb } = await getPublicImage(attachment.image_url || attachment.thumb_url)
+    const { data: thumb } = await getPublicImage(attachment.image_url || attachment.thumb_url || attachment.service_icon)
     attachment.isImage = !!attachment.image_url
     attachment.thumb = thumb
     return attachment
