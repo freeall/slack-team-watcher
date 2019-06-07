@@ -10,6 +10,8 @@ const stringReplaceAsync = require('string-replace-async')
 const chalk = require('chalk')
 const { emojify } = require('node-emoji')
 
+// TODO!!!! MULTILINE!!!! eg: foo\nbar\nhere <https:....>
+
 const RE_USER = /<@U[A-Z0-9]*>/g
 const RE_CHANNEL = /<#C[^\s]*>/g
 const RE_URL = /<http[^\s]*>/ig
@@ -44,6 +46,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
 
   const isUrlVerification = type === 'url_verification'
   const isUserMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.subtype !== 'bot_message'
+  const isEditedMessage = type === 'event_callback' && event.type === 'message' && event.hidden && event.subtype === 'message_changed'
   const isBotMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.subtype === 'bot_message'
   const isProbablyUnfurledLink = type === 'event_callback' && event.type === 'message' && event.hidden && event.message.attachments
 
@@ -52,7 +55,8 @@ app.post('/', bodyParser.json(), async (req, res) => {
   res.send('ok')
 
   try {
-    if (isUserMessage) return await onUserMessage(event)
+    if (isUserMessage) return await onUserMessage({ event, edited: false })
+    if (isEditedMessage) return await onUserMessage({ event, edited: true })
     if (isBotMessage) return await onBotMessage(event)
     if (isProbablyUnfurledLink) return await onUnfurledLink(event)
 
@@ -63,7 +67,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
   }
 })
 
-async function onMessage({ nameStr, profileImage, event }) {
+async function onMessage({ nameStr, profileImage, event, edited }) {
   const files = event.files || []
   const { channel } = await getChannel(event.channel)
   const profileImageAsStr = termImg.string(profileImage, { height: 2, preserveAspectRatio: true })
@@ -71,9 +75,9 @@ async function onMessage({ nameStr, profileImage, event }) {
     .filter(({ filetype: type }) => type === 'png' || type === 'gif' || type === 'jpg')
     .map(async ({ url_private }) => await getPrivateImage(url_private)))
 
-  const text = await replaceUserIds(replaceChannelIds(replaceUrls(emojify(event.text))))
+  const text = await replaceUserIds(replaceChannelIds(replaceUrls(emojify(edited ? event.message.text : event.text))))
 
-  console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${text}`)
+  console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${text} ${edited ? chalk.bgWhite.black('(edited)') : ''}`)
   images.forEach(({ data: image }) => termImg(image))
 }
 
@@ -85,12 +89,12 @@ async function onBotMessage(event) {
   await onMessage({ nameStr, profileImage, event })
 }
 
-async function onUserMessage (event) {
-  const { user } = await getUser(event.user)
+async function onUserMessage({ event, edited }) {
+  const { user } = await getUser(edited ? event.message.user : event.user)
   const { data: profileImage } = await getPublicImage(user.profile.image_24 || user.profile.image_36 || user.profile.image_48 || user.profile.image_64 || user.profile.image_72)
   const nameStr = userToStr(user.name)
 
-  await onMessage({ nameStr, profileImage, event })
+  await onMessage({ nameStr, profileImage, event, edited })
 }
 
 async function onUnfurledLink(event) {
