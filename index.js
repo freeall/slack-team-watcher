@@ -62,7 +62,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
     if (isUserMessage) return await onUserMessage({ event, edited: false })
     if (isEditedMessage) return await onUserMessage({ event, edited: true })
     if (isBotMessage) return await onBotMessage(event)
-    if (isProbablyUnfurledLink) return await onUnfurledLink(event)
+    if (isProbablyUnfurledLink) return await onAttachments(event.message.attachments)
 
     console.log('DID NOT UNDERSTAND SLACK EVENT:', JSON.stringify(slackEvent))
   } catch (err) {
@@ -86,6 +86,8 @@ async function onMessage({ nameStr, profileImage, event, edited }) {
 
   console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${text} ${edited ? chalk.bgWhite.black('(edited)') : ''}`)
   images.forEach(({ data: image }) => termImg(image))
+
+  if (event.attachments) return onAttachments(event.attachments)
 }
 
 async function onBotMessage(event) {
@@ -104,20 +106,30 @@ async function onUserMessage({ event, edited }) {
   await onMessage({ nameStr, profileImage, event, edited })
 }
 
-async function onUnfurledLink(event) {
-  const attachments = await Promise.all(event.message.attachments.map(async attachment => {
-    const { data: thumb } = await getPublicImage(attachment.image_url || attachment.thumb_url || attachment.service_icon)
-    attachment.isImage = !!attachment.image_url
+async function onAttachments (attachments) {
+  attachments = await Promise.all(attachments.map(async attachment => {
+    const attachmentThumb = attachment.image_url || attachment.thumb_url || attachment.service_icon
+    const hasThumb = !!attachmentThumb
+
+    if (!hasThumb) return attachment
+
+    const { data: thumb } = await getPublicImage(attachmentThumb)
+    attachment.isOnlyImage = !!attachment.image_url
     attachment.thumb = thumb
     return attachment
   }))
 
-  attachments.forEach(attachment => {
-    if (attachment.isImage) return termImg(attachment.thumb)
+  attachments.forEach(async attachment => {
+    if (attachment.isOnlyImage) return termImg(attachment.thumb)
 
-    const thumbAsStr = termImg.string(attachment.thumb, { height: 2, preserveAspectRatio: true })
-    console.log(chalk.blue.bold(`${thumbAsStr}${attachment.service_name || ''}${attachment.title ? ` - ${attachment.title}` : ''}`))
-    console.log(`     ${chalk.gray(attachment.text || '')}`)
+    const hasThumb = !!attachment.thumb
+
+    const thumbAsStr = hasThumb && termImg.string(attachment.thumb, { height: 2, preserveAspectRatio: true })
+    const title = chalk.blue.bold(`${attachment.service_name || attachment.author_name || ''}${attachment.title ? ` - ${attachment.title}` : ''}`)
+    const text = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(attachment.text || '')))))
+    const bar = chalk.bgBlue(' ') + ' '
+    console.log(bar + (hasThumb ? thumbAsStr + title : title))
+    console.log(bar + (hasThumb ? `     ${text}` : text))
   })
 }
 
