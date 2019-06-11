@@ -15,6 +15,7 @@ const { emojify } = require('node-emoji')
 const RE_USER = /<@U[A-Z0-9]*>/g
 const RE_CHANNEL = /<#C[^\s]*>/g
 const RE_URL = /<http[^\s]*>/ig
+const IGNORE_CHANNELS = process.env.IGNORE_CHANNELS ? process.env.IGNORE_CHANNELS.split(',') : []
 
 const app = express()
 const slack = new WebClient(process.env.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN)
@@ -70,6 +71,9 @@ app.post('/', bodyParser.json(), async (req, res) => {
 async function onMessage({ nameStr, profileImage, event, edited }) {
   const files = event.files || []
   const { channel } = await getChannel(event.channel)
+
+  if (isIgnoredChannel(channel.name)) return
+
   const profileImageAsStr = termImg.string(profileImage, { height: 2, preserveAspectRatio: true })
   const images = await Promise.all(files
     .filter(({ filetype: type }) => type === 'png' || type === 'gif' || type === 'jpg')
@@ -112,6 +116,10 @@ async function onUnfurledLink(event) {
     console.log(chalk.blue.bold(`${thumbAsStr}${attachment.service_name || ''}${attachment.title ? ` - ${attachment.title}` : ''}`))
     console.log(`     ${chalk.gray(attachment.text || '')}`)
   })
+}
+
+function isIgnoredChannel(channel) {
+  return IGNORE_CHANNELS.find(ignoreChannel => ignoreChannel.replace('#', '').toLowerCase() === channel.toLowerCase())
 }
 
 app.listen(3030, () => console.log('Started listener on port 3030'))
