@@ -14,7 +14,8 @@ const { emojify } = require('node-emoji')
 
 const RE_USER = /<@U[A-Z0-9]*>/g
 const RE_CHANNEL = /<#C[^\s]*>/g
-const RE_URL = /<http[^\s]*>/ig
+const RE_URL = /<http.*?>/ig
+const RE_BOLD = /\*.*?\*/g
 const IGNORE_CHANNELS = process.env.IGNORE_CHANNELS ? process.env.IGNORE_CHANNELS.split(',') : []
 
 const app = express()
@@ -24,6 +25,7 @@ const channelToStr = channel => chalk.red(`#${channel}`)
 const userToStr = user => chalk.green.bold(`@${user}`)
 const botToStr = bot => `${chalk.green.bold(`@${bot}`)} ${chalk.black.bgWhite('APP')}`
 const urlToStr = url => chalk.cyan.underline(url)
+const boldToStr = str => chalk.bold(str)
 const getUser = memoize(user => slack.users.info({ user }))
 const getBot = memoize(bot => slack.bots.info({ bot }))
 const getChannel = memoize(channel => slack.channels.info({ channel }))
@@ -40,6 +42,7 @@ const replaceUserIds = str => stringReplaceAsync(str, RE_USER, async match => {
 })
 const replaceChannelIds = str => str.replace(RE_CHANNEL, match => channelToStr(match.substring(match.indexOf('|') + 1, match.length - 1)))
 const replaceUrls = str => str.replace(RE_URL, match => urlToStr(match.substring(1, match.length - 1)))
+const replaceBold = str => str.replace(RE_BOLD, match => boldToStr(match.substring(1, match.length - 1)))
 
 app.post('/', bodyParser.json(), async (req, res) => {
   const { body: slackEvent } = req
@@ -79,7 +82,7 @@ async function onMessage({ nameStr, profileImage, event, edited }) {
     .filter(({ filetype: type }) => type === 'png' || type === 'gif' || type === 'jpg')
     .map(async ({ url_private }) => await getPrivateImage(url_private)))
 
-  const text = await replaceUserIds(replaceChannelIds(replaceUrls(emojify(edited ? event.message.text : event.text))))
+  const text = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(edited ? event.message.text : event.text)))))
 
   console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${text} ${edited ? chalk.bgWhite.black('(edited)') : ''}`)
   images.forEach(({ data: image }) => termImg(image))
