@@ -20,6 +20,7 @@ const IGNORE_CHANNELS = process.env.IGNORE_CHANNELS ? process.env.IGNORE_CHANNEL
 
 const app = express()
 const slack = new WebClient(process.env.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN)
+const previousMessages = {}
 
 const channelToStr = channel => chalk.red(`#${channel}`)
 const userToStr = user => chalk.green.bold(`@${user}`)
@@ -47,7 +48,6 @@ const replaceBold = str => str.replace(RE_BOLD, match => boldToStr(match.substri
 app.post('/', bodyParser.json(), async (req, res) => {
   const { body: slackEvent } = req
   const { type, challenge, event } = slackEvent
-
   const isUrlVerification = type === 'url_verification'
   const isUserMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.subtype !== 'bot_message'
   const isEditedMessage = type === 'event_callback' && event.type === 'message' && event.hidden && event.subtype === 'message_changed'
@@ -55,9 +55,9 @@ app.post('/', bodyParser.json(), async (req, res) => {
   const isProbablyUnfurledLink = type === 'event_callback' && event.type === 'message' && event.hidden && event.message.attachments
 
   if (isUrlVerification) return res.send(challenge)
-
   res.send('ok')
 
+  // console.log(JSON.stringify(event))
   try {
     if (isUserMessage) return await onUserMessage({ event, edited: false })
     if (isEditedMessage) return await onUserMessage({ event, edited: true })
@@ -72,22 +72,32 @@ app.post('/', bodyParser.json(), async (req, res) => {
 })
 
 async function onMessage({ nameStr, profileImage, event, edited }) {
-  const files = event.files || []
+  const files = edited ? event.message.files : event.files
+  const attachments = edited ? event.message.attachments : event.attachments
   const { channel } = await getChannel(event.channel)
 
   if (isIgnoredChannel(channel.name)) return
 
   const profileImageAsStr = termImg.string(profileImage, { height: 2, preserveAspectRatio: true })
-  const images = await Promise.all(files
+  const images = files && await Promise.all(files
     .filter(({ filetype: type }) => type === 'png' || type === 'gif' || type === 'jpg')
     .map(async ({ url_private }) => await getPrivateImage(url_private)))
 
-  const text = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(edited ? event.message.text : event.text)))))
+  const text = edited ? event.message.text : event.text
+  const clientMessageId = edited ? event.message.client_msg_id : event.client_msg_id
+  const hasTextUpdated = previousMessages[clientMessageId] !== text
+  const hasAttachments = !!attachments
+  const hasImages = !!images
 
-  console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${text} ${edited ? chalk.bgWhite.black('(edited)') : ''}`)
-  images.forEach(({ data: image }) => termImg(image))
+  previousMessages[clientMessageId] = text
 
-  if (event.attachments) return onAttachments(event.attachments)
+  if (hasTextUpdated) {
+    const prettifiedText = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(text)))))
+    console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${prettifiedText} ${edited ? chalk.bgWhite.black('(edited)') : ''}`)
+  }
+
+  if (hasAttachments && !hasTextUpdated) await onAttachments(attachments)
+  if (hasImages && !edited) images.forEach(({ data: image }) => termImg(image))
 }
 
 async function onBotMessage(event) {
@@ -106,31 +116,47 @@ async function onUserMessage({ event, edited }) {
   await onMessage({ nameStr, profileImage, event, edited })
 }
 
-async function onAttachments (attachments) {
-  attachments = await Promise.all(attachments.map(async attachment => {
-    const attachmentThumb = attachment.image_url || attachment.thumb_url || attachment.service_icon
-    const hasThumb = !!attachmentThumb
-
-    if (!hasThumb) return attachment
-
-    const { data: thumb } = await getPublicImage(attachmentThumb)
-    attachment.isOnlyImage = !!attachment.image_url
-    attachment.thumb = thumb
-    return attachment
-  }))
-
+async function onAttachments(attachments) {
+  attachments = await Promise.all(attachments.map(populateAttachment))
   attachments.forEach(async attachment => {
-    if (attachment.isOnlyImage) return termImg(attachment.thumb)
-
     const hasThumb = !!attachment.thumb
+    const hasText = !!attachment.text
+    const hasImage = !!attachment.image
 
     const thumbAsStr = hasThumb && termImg.string(attachment.thumb, { height: 2, preserveAspectRatio: true })
     const title = chalk.blue.bold(`${attachment.service_name || attachment.author_name || ''}${attachment.title ? ` - ${attachment.title}` : ''}`)
     const text = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(attachment.text || '')))))
     const bar = chalk.bgBlue(' ') + ' '
-    console.log(bar + (hasThumb ? thumbAsStr + title : title))
-    console.log(bar + (hasThumb ? `     ${text}` : text))
+
+    if (hasThumb) console.log(thumbAsStr + title)
+    if (!hasThumb) console.log(bar + title)
+
+    if (hasText && hasThumb) console.log(`     ${text}`)
+    if (hasText && !hasThumb) console.log(bar + text)
+
+    if (hasImage) termImg(attachment.image)
   })
+}
+
+async function populateAttachment (attachment) {
+  const attachmentThumb = attachment.thumb_url || attachment.service_icon
+  const attachmentImage = attachment.image_url
+  const hasThumb = !!attachmentThumb
+  const hasImage = !!attachmentImage
+
+  if (!hasThumb && !hasImage) return attachment
+
+  if (hasThumb) {
+    const { data: thumb } = await getPublicImage(attachmentThumb)
+    attachment.thumb = thumb
+  }
+
+  if (hasImage) {
+    const { data: image } = await getPublicImage(attachmentImage)
+    attachment.image = image
+  }
+
+  return attachment
 }
 
 function isIgnoredChannel(channel) {
