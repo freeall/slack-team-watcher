@@ -17,6 +17,7 @@ const RE_CHANNEL = /<#C[^\s]*>/g
 const RE_URL = /<http.*?>/ig
 const RE_BOLD = /\*.*?\*/g
 const IGNORE_CHANNELS = process.env.IGNORE_CHANNELS ? process.env.IGNORE_CHANNELS.split(',') : []
+const DEBUG = false
 
 const app = express()
 const slack = new WebClient(process.env.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN)
@@ -49,29 +50,36 @@ app.post('/', bodyParser.json(), async (req, res) => {
   const { body: slackEvent } = req
   const { type, challenge, event } = slackEvent
   const isUrlVerification = type === 'url_verification'
-  const isUserMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.subtype !== 'bot_message'
-  const isEditedMessage = type === 'event_callback' && event.type === 'message' && event.hidden && event.subtype === 'message_changed'
-  const isBotMessage = type === 'event_callback' && event.type === 'message' && !event.hidden && event.subtype === 'bot_message'
-  const isProbablyUnfurledLink = type === 'event_callback' && event.type === 'message' && event.hidden && event.message.attachments
+  const isMessage = type === 'event_callback' && event.type === 'message'
+  const isPostedByBot = event.subtype === 'bot_message' || !!event.bot_id || (event.message && event.message.bot_id)
+  const isUserMessage = isMessage && !event.hidden && !isPostedByBot
+  const isBotMessage = isMessage && !event.hidden && isPostedByBot
+  const isEditedUserMessage = isMessage && event.hidden && !isPostedByBot && event.subtype === 'message_changed'
+  const isEditedBotMessage = isMessage && event.hidden && isPostedByBot && event.subtype === 'message_changed'
+  const isProbablyUnfurledLink = isMessage && event.hidden && event.message.attachments
 
   if (isUrlVerification) return res.send(challenge)
   res.send('ok')
 
-  // console.log(JSON.stringify(event))
+  if (DEBUG) console.log(`[New event] ${JSON.stringify(event)}`)
+
   try {
     if (isUserMessage) return await onUserMessage({ event, edited: false })
-    if (isEditedMessage) return await onUserMessage({ event, edited: true })
-    if (isBotMessage) return await onBotMessage(event)
+    if (isBotMessage) return await onBotMessage({ event, edited: false })
+    if (isEditedUserMessage) return await onUserMessage({ event, edited: true })
+    if (isEditedBotMessage) return await onBotMessage({ event, edited: true })
     if (isProbablyUnfurledLink) return await onAttachments(event.message.attachments)
 
-    console.log('DID NOT UNDERSTAND SLACK EVENT:', JSON.stringify(slackEvent))
+    console.warn('DID NOT UNDERSTAND SLACK EVENT:', JSON.stringify(slackEvent))
   } catch (err) {
-    console.log('Error parsing:', JSON.stringify(slackEvent))
+    console.error('Error parsing:', JSON.stringify(slackEvent))
     throw err
   }
 })
 
 async function onMessage({ nameStr, profileImage, event, edited }) {
+  if (DEBUG) console.log(`[onMessage] Edited=${edited}`)
+
   const files = edited ? event.message.files : event.files
   const attachments = edited ? event.message.attachments : event.attachments
   const { channel } = await getChannel(event.channel)
@@ -85,30 +93,43 @@ async function onMessage({ nameStr, profileImage, event, edited }) {
 
   const text = edited ? event.message.text : event.text
   const clientMessageId = edited ? event.message.client_msg_id : event.client_msg_id
-  const hasTextUpdated = previousMessages[clientMessageId] !== text
+  const isNewMessage = !previousMessages[clientMessageId]
+  const hasTextUpdated = !isNewMessage && previousMessages[clientMessageId].text !== text
+  const hasUpdatedRecently = !isNewMessage && Date.now() - previousMessages[clientMessageId].timestamp < 60000
   const hasAttachments = !!attachments
   const hasImages = !!images
 
-  previousMessages[clientMessageId] = text
+  if (DEBUG) console.log(`[onMessage] clientMessageId=${clientMessageId} hasTextUpdated=${hasTextUpdated} hasUpdatedRecently=${hasUpdatedRecently} hasAttachments=${hasAttachments} hasImages=${hasImages}`)
 
-  if (hasTextUpdated) {
+  previousMessages[clientMessageId] = { text, timestamp: Date.now() }
+
+  // Write the message (and who wrote it) if
+  // - the text has updated, or it it's too long since the original message was changed.
+  // - it's too long since the original message(and poster) was shown [this is usually behaviors of Slack apps, so it's a way to shown who posted something, even though it's tehnically just an 'update' to a message]
+  if (hasTextUpdated || !hasUpdatedRecently) {
     const prettifiedText = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(text)))))
-    console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${prettifiedText} ${edited ? chalk.bgWhite.black('(edited)') : ''}`)
+    console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${prettifiedText} ${ (text && edited) ? chalk.bgWhite.black('(edited)') : ''}`)
   }
 
-  if (hasAttachments && !hasTextUpdated) await onAttachments(attachments)
+  // if (hasAttachments && !hasTextUpdated) await onAttachments(attachments)
+  if (hasAttachments) await onAttachments(attachments)
   if (hasImages && !edited) images.forEach(({ data: image }) => termImg(image))
 }
 
-async function onBotMessage(event) {
-  const { bot } = await getBot(event.bot_id)
+async function onBotMessage({ event, edited }) {
+  if (DEBUG) console.log(`[onBotMessage]`)
+
+  const botId = event.bot_id || (event.message && event.message.bot_id)
+  const { bot } = await getBot(botId)
   const { data: profileImage } = await getPublicImage(bot.icons.image_24 || bot.icons.image_36 || bot.icons.image_48 || bot.icons.image_64 || bot.icons.image_72)
   const nameStr = botToStr(bot.name)
 
-  await onMessage({ nameStr, profileImage, event })
+  await onMessage({ nameStr, profileImage, event, edited })
 }
 
 async function onUserMessage({ event, edited }) {
+  if (DEBUG) console.log(`[onUserMessage] Edited=${edited}`)
+
   const { user } = await getUser(edited ? event.message.user : event.user)
   const { data: profileImage } = await getPublicImage(user.profile.image_24 || user.profile.image_36 || user.profile.image_48 || user.profile.image_64 || user.profile.image_72)
   const nameStr = userToStr(user.name)
@@ -117,22 +138,27 @@ async function onUserMessage({ event, edited }) {
 }
 
 async function onAttachments(attachments) {
-  attachments = await Promise.all(attachments.map(populateAttachment))
-  attachments.forEach(async attachment => {
-    const hasThumb = !!attachment.thumb
-    const hasText = !!attachment.text
-    const hasImage = !!attachment.image
+  if (DEBUG && attachments.length) console.log(`[onAttachments] #attachments=${attachments.length}`)
 
+  attachments = await Promise.all(attachments.map(populateAttachment))
+  attachments.forEach(async (attachment, i) => {
+    const text = attachment.text && attachment.text.trim()
+    const hasThumb = !!attachment.thumb
+    const hasText = !!text
+    const hasImage = !!attachment.image
     const thumbAsStr = hasThumb && termImg.string(attachment.thumb, { height: 2, preserveAspectRatio: true })
-    const title = chalk.blue.bold(`${attachment.service_name || attachment.author_name || ''}${attachment.title ? ` - ${attachment.title}` : ''}`)
-    const text = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(attachment.text || '')))))
+    const author = attachment.service_name || attachment.author_name || ''
+    const title = chalk.blue.bold(`${author ? `${author} - ` : ''}${attachment.title || ''}`)
+    const prettifiedText = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(text || '')))))
     const bar = chalk.bgBlue(' ') + ' '
+
+    if (DEBUG) console.log(`[onAttachments] i=${i} hasText=${hasText} hasImage=${hasImage} hasThumb=${hasThumb} text=${text}`)
 
     if (hasThumb) console.log(thumbAsStr + title)
     if (!hasThumb) console.log(bar + title)
 
-    if (hasText && hasThumb) console.log(`     ${text}`)
-    if (hasText && !hasThumb) console.log(bar + text)
+    if (hasText && hasThumb) console.log(`     ${prettifiedText}`)
+    if (hasText && !hasThumb) console.log(bar + prettifiedText)
 
     if (hasImage) termImg(attachment.image)
   })
