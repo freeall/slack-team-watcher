@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "echo 'You cannot run this through \"npm/yarn start\" because this program uses imgcat to show images in terminal'",
-    "forward": "./forever.sh ssh -R freeall-team-watcher:80:localhost:3030 serveo.net"
+    "setup": "node setup.js"
   },
   "dependencies": {
     "@slack/web-api": "^5.0.1",

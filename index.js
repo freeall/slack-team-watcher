@@ -9,8 +9,7 @@ const termImg = require('term-img')
 const stringReplaceAsync = require('string-replace-async')
 const chalk = require('chalk')
 const { emojify } = require('node-emoji')
-
-// TODO!!!! MULTILINE!!!! eg: foo\nbar\nhere <https:....>
+const forwardForever = require('./forward-forever')
 
 const RE_USER = /<@U[A-Z0-9]*>/g
 const RE_CHANNEL = /<#C[^\s]*>/g
@@ -59,6 +58,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
   const isProbablyUnfurledLink = isMessage && event.hidden && event.message.attachments
 
   if (isUrlVerification) return res.send(challenge)
+
   res.send('ok')
 
   if (DEBUG) console.log(`[New event] ${JSON.stringify(event)}`)
@@ -189,7 +189,9 @@ function isIgnoredChannel(channel) {
   return IGNORE_CHANNELS.find(ignoreChannel => ignoreChannel.replace('#', '').toLowerCase() === channel.toLowerCase())
 }
 
-app.listen(3030, () => console.log('Started listener on port 3030'))
+app.listen(3030)
+
+forwardForever(process.env.SERVEO_NAME, 3030)
 
 process.on('uncaughtException', err => console.log('uncaughtException:', err))
 process.on('unhandledRejection', err => console.log('unhandledRejection:', err))

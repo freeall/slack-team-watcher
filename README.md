@@ -6,41 +6,27 @@ Profile pictures, images, gifs, and links are supported.
 
 ## Requirements
 
+### iTerm
+
+Other terminals might work, but they would need to support `img-cat`
+
 ### imgcat in iTerm
 
-Uses iTerms `img-cat`, so install that first.
-
-### Public URL
-
-As Team Watcher uses Slack Events you need to add a public endpoint, e.g. using `ngrok` or `serveo.net`.
-
-When started correctly ngrok will output something like this:
-
-`Forwarding                    http://a1b2c3d4.ngrok.io -> http://localhost:3030` <--- the ngrok URL is the important one
-
-Serveo would output something like this:
-
-`Forwarding HTTP traffic from https://foo-bar-baz.serveo.net`
+Team Watcher uses iTerms `img-cat`, so install that first.
 
 ## Installation
 
-1. After setting up `ngrok` to forward to port 3030 (or change the port in the source), start by running `node index.js`
-2. Create a file called `local.json` in the folder where this `README.md`
-3. Go to https://api.slack.com/apps
-4. Create App. Choose any `App Name`. Choose your workspace as the `Development Slack Workspace`
-5. Enable event. Request URL should be the one `ngrok` gave you, e.g. `http://a1b2c3d4.ngrok.io` (this needs to be verified which is why your app should already be running)
-6. Subscribe to Workspace Events: `message.channels`
-7. Create Bot User: `Team Watcher` / `team_watcher`
-8. OAuth Scopes: `channels:history`, `files:read`
-9. Install app on your team
-10. Insert tokens into `local.json`, so it will look like:
+While there are quite some steps it only takes 1-2 minutes to install.
 
-```
-{
-  "SLACK_OAUTH_ACCESS_TOKEN": "xoxp-.......",
-  "SLACK_BOT_USER_OAUTH_ACCESS_TOKEN": "xoxb-...."
-}
-```
-11. Shut down your app and start it again (so that it can read the tokens you just set)
+1. Run `npm run setup`. A Request URL will be outputted. Note that the program will not exit until step 4 has completed successfully.
+2. Go to https://api.slack.com/apps
+3. Create App. Choose any `App Name`. Choose your workspace as the `Development Slack Workspace`
+4. Enable event. Request URL should be the one outputted to you in step 1.
+5. Subscribe to Workspace Events: `message.channels`
+6. Create Bot User: `Team Watcher` / `team_watcher`
+7. OAuth Scopes: `channels:history`, `files:read`
+8. Install app on your team
+9. Edit `local.json` and insert tokens
+10. Run `node index.js`
 
 Now you should be able to see the messages coming in 🤡
