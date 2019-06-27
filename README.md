@@ -10,9 +10,13 @@ Profile pictures, images, gifs, and links are supported.
 
 Other terminals might work, but they would need to support `img-cat`
 
-### imgcat in iTerm
+### imgcat
 
-Team Watcher uses iTerms `img-cat`, so install that first.
+Team Watcher uses iTerm's `img-cat` to show images, so install that first.
+
+You can do that in iTerm's menu: `iTerm2 -> Install Shell Integration`
+
+Or if you only want `img-cat` you can read about that here: https://www.iterm2.com/documentation-images.html
 
 ## Installation
 
