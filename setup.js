@@ -1,7 +1,8 @@
 const fs = require('fs')
 const express = require('express')
+const forwardForever = require('./forward-forever')
+
 const serveoName = `stw-${Math.random().toString().substr(2)}`
-const forwardForver = require('./forward-forever')
 const app = express()
 const bodyParser = require('body-parser')
 
@@ -33,7 +34,7 @@ fs.writeFileSync('./local.json', `{
 
 require('load-environment')
 
-forwardForver(process.env.SERVEO_NAME, 3030)
+forwardForever(process.env.SERVEO_NAME, 3030)
 
 console.log('Created local.json')
 console.log()
