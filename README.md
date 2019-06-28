@@ -20,7 +20,7 @@ While there are quite some steps it only takes 1-2 minutes to install.
 2. Run `npm run setup`. A Request URL will be outputted. Note that the setup will not exit until step 5 has completed successfully.
 3. Go to https://api.slack.com/apps
 4. Create App. Choose any `App Name`. Choose your workspace as the `Development Slack Workspace`
-5. Enable event. Request URL should be the one outputted to you in step 1.
+5. Enable event. Request URL should be the one outputted to you in step 2.
 6. Subscribe to Workspace Events: `message.channels`
 7. Create Bot User: `Team Watcher` / `team_watcher`
 8. OAuth Scopes: `channels:history`, `files:read`
