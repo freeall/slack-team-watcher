@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "echo 'You cannot run this through \"npm/yarn start\" because this program uses imgcat to show images in terminal'",
+    "start": "node index.js",
     "setup": "node setup.js"
   },
   "dependencies": {
@@ -14,10 +14,10 @@
     "chalk": "^2.4.2",
     "express": "^4.17.0",
     "forever": "^1.0.0",
+    "imgcat": "^2.3.0",
     "load-environment": "^3.0.0",
     "node-emoji": "^1.10.0",
-    "string-replace-async": "^1.2.1",
-    "term-img": "^4.1.0"
+    "string-replace-async": "^1.2.1"
   },
   "devDependencies": {
     "nodemon": "^1.19.0"

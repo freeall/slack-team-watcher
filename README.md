@@ -1,4 +1,6 @@
-# Team Watcher
+# Slack Team Watcher
+
+![Screenshot of Slack Team Watcher](https://github.com/freeall/slack-team-watcher/blob/master/screenshot.png)
 
 Have all of your team's public chats running in the CLI. Just for kicks.
 
@@ -8,15 +10,7 @@ Profile pictures, images, gifs, and links are supported.
 
 ### iTerm
 
-Other terminals might work, but they would need to support `img-cat`
-
-### imgcat
-
-Team Watcher uses iTerm's `img-cat` to show images, so install that first.
-
-You can do that in iTerm's menu: `iTerm2 -> Install Shell Integration`
-
-Or if you only want `img-cat` you can read about that here: https://www.iterm2.com/documentation-images.html
+iTerm is needed as `Slack Team Watcer` outputs grapics in an iTerm format
 
 ## Installation
 
@@ -31,6 +25,6 @@ While there are quite some steps it only takes 1-2 minutes to install.
 7. OAuth Scopes: `channels:history`, `files:read`
 8. Install app on your team
 9. Edit `local.json` and insert tokens
-10. Run `node index.js`
+10. Run `npm run start`
 
 Now you should be able to see the messages coming in 🤡

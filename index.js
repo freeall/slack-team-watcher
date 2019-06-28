@@ -5,7 +5,7 @@ const bodyParser = require('body-parser')
 const { WebClient } = require('@slack/web-api')
 const memoize = require('./memoize-async')
 const axios = require('axios')
-const termImg = require('term-img')
+const imgcat = require('imgcat')
 const stringReplaceAsync = require('string-replace-async')
 const chalk = require('chalk')
 const { emojify } = require('node-emoji')
@@ -86,7 +86,7 @@ async function onMessage({ nameStr, profileImage, event, edited }) {
 
   if (isIgnoredChannel(channel.name)) return
 
-  const profileImageAsStr = termImg.string(profileImage, { height: 2, preserveAspectRatio: true })
+  const profileImageAsStr = await imgcat(profileImage, { height: 2, preserveAspectRatio: true })
   const images = files && await Promise.all(files
     .filter(({ filetype: type }) => type === 'png' || type === 'gif' || type === 'jpg')
     .map(async ({ url_private }) => await getPrivateImage(url_private)))
@@ -113,7 +113,7 @@ async function onMessage({ nameStr, profileImage, event, edited }) {
 
   // if (hasAttachments && !hasTextUpdated) await onAttachments(attachments)
   if (hasAttachments) await onAttachments(attachments)
-  if (hasImages && !edited) images.forEach(({ data: image }) => termImg(image))
+  if (hasImages && !edited) images.forEach(({ data: image }) => imgcat(image, {log: true}))
 }
 
 async function onBotMessage({ event, edited }) {
@@ -146,7 +146,7 @@ async function onAttachments(attachments) {
     const hasThumb = !!attachment.thumb
     const hasText = !!text
     const hasImage = !!attachment.image
-    const thumbAsStr = hasThumb && termImg.string(attachment.thumb, { height: 2, preserveAspectRatio: true })
+    const thumbAsStr = hasThumb && await imgcat(attachment.thumb, { height: 2, preserveAspectRatio: true })
     const author = attachment.service_name || attachment.author_name || ''
     const title = chalk.blue.bold(`${author ? `${author} - ` : ''}${attachment.title || ''}`)
     const prettifiedText = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(text || '')))))
@@ -160,7 +160,7 @@ async function onAttachments(attachments) {
     if (hasText && hasThumb) console.log(`     ${prettifiedText}`)
     if (hasText && !hasThumb) console.log(bar + prettifiedText)
 
-    if (hasImage) termImg(attachment.image)
+    if (hasImage) imgcat(attachment.image, {log: true})
   })
 }
 
