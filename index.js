@@ -191,7 +191,7 @@ function isIgnoredChannel(channel) {
 
 app.listen(3030)
 
-forwardForever(process.env.SERVEO_NAME, 3030)
+forwardForever(process.env.FORWARDER_NAME, 3030)
 
 process.on('uncaughtException', err => console.log('uncaughtException:', err))
 process.on('unhandledRejection', err => console.log('unhandledRejection:', err))

@@ -2,7 +2,7 @@ const fs = require('fs')
 const express = require('express')
 const forwardForever = require('./forward-forever')
 
-const serveoName = `stw-${Math.random().toString().substr(2)}`
+const forwarderName = `stw-${Math.random().toString().substr(2)}`
 const app = express()
 const bodyParser = require('body-parser')
 
@@ -13,18 +13,18 @@ app.post('/', bodyParser.json(), async (req, res) => {
 
   if (isChallenge) {
     res.send(challenge)
-    console.log('')
-    console.log('Received verification message. Setup will now exit.')
-    console.log('')
-    console.log('Continue with the installation instructions')
-    process.exit(0)
+    console.log('>')
+    console.log('> Received verification message. Setup will now exit.')
+    console.log('> Continue with the rest of the installation instructions')
+
+    setTimeout(() => process.exit(0), 2000)
   }
 })
 
 app.listen(3030)
 
 fs.writeFileSync('./local.json', `{
-  "SERVEO_NAME": "${serveoName}",
+  "FORWARDER_NAME": "${forwarderName}",
   "SLACK_OAUTH_ACCESS_TOKEN": "xoxp-...",
   "SLACK_BOT_USER_OAUTH_ACCESS_TOKEN": "xoxb-...",
   "IGNORE_CHANNELS": [
@@ -34,10 +34,14 @@ fs.writeFileSync('./local.json', `{
 
 require('load-environment')
 
-forwardForever(process.env.SERVEO_NAME, 3030)
+console.log('> Created local.json')
+console.log('> Waiting for forwarding tunnel...')
 
-console.log('Created local.json')
-console.log()
-console.log(`Now continue with the installation instructions, and use this Request URL when asked: https://${serveoName}.serveo.net`)
-console.log()
-console.log('...When Slack sends verification message this setup will exit')
+const forwarder = forwardForever(process.env.FORWARDER_NAME, 3030)
+forwarder.on('ready', () => {
+  console.log('> Tunnel ready')
+  console.log('>')
+  console.log(`> Now continue with the installation instructions, and use this Request URL when asked: https://${forwarderName}.localtunnel.me`)
+  console.log('>')
+  console.log('> When Slack sends verification message this setup will exit...')
+})

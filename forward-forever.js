@@ -1,10 +1,13 @@
-const cp = require('child_process')
+const localtunnel = require('localtunnel')
+const EventEmitter = require('events')
 
-// Forwards traffic with Serveo
-// Restarts when process closes (which it will if there's not traffic for a longer period)
-function runForever(subdomain, localPort) {
-  const proc = cp.exec(`ssh -R ${subdomain}:80:localhost:${localPort} serveo.net`)
-  proc.on('close', () => runForever(subdomain, localPort))
+module.exports = (subdomain, localPort) => {
+  const that = new EventEmitter()
+  const tunnel = localtunnel(localPort, { subdomain }, (err, tunnel) => {
+    err && console.error(`[FORWARDER] Error: ${err}`)
+    that.emit('ready', tunnel.url)
+  })
+  tunnel.on('close', () => console.error('[FORWARDER] Forwarded messages from Slack may no longer reach you. Please restart Slack Team Watcher'))
+
+  return that
 }
-
-module.exports = runForever
