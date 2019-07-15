@@ -57,6 +57,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
   const isEditedBotMessage = isMessage && event.hidden && isPostedByBot && event.subtype === 'message_changed'
   const isRemovedMessage = isMessage && event.subtype === 'message_deleted'
   const isProbablyUnfurledLink = isMessage && event.hidden && event.message && event.message.attachments
+  const shouldBeIgnored = isRemovedMessage && !event.previous_message
 
   if (isUrlVerification) return res.send(challenge)
 
@@ -65,6 +66,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
   if (DEBUG) console.log(`[New event] ${JSON.stringify(event)}`)
 
   try {
+    if (shouldBeIgnored) return
     if (isUserMessage) return await onUserMessage({ event, edited: false })
     if (isBotMessage) return await onBotMessage({ event, edited: false })
     if (isEditedUserMessage) return await onUserMessage({ event, edited: true })
