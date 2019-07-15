@@ -55,7 +55,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
   const isBotMessage = isMessage && !event.hidden && isPostedByBot
   const isEditedUserMessage = isMessage && event.hidden && !isPostedByBot && event.subtype === 'message_changed'
   const isEditedBotMessage = isMessage && event.hidden && isPostedByBot && event.subtype === 'message_changed'
-  const isProbablyUnfurledLink = isMessage && event.hidden && event.message.attachments
+  const isProbablyUnfurledLink = isMessage && event.hidden && event.message && event.message.attachments
 
   if (isUrlVerification) return res.send(challenge)
 
