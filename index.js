@@ -55,6 +55,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
   const isBotMessage = isMessage && !event.hidden && isPostedByBot
   const isEditedUserMessage = isMessage && event.hidden && !isPostedByBot && event.subtype === 'message_changed'
   const isEditedBotMessage = isMessage && event.hidden && isPostedByBot && event.subtype === 'message_changed'
+  const isRemovedMessage = isMessage && event.subtype === 'message_deleted'
   const isProbablyUnfurledLink = isMessage && event.hidden && event.message && event.message.attachments
 
   if (isUrlVerification) return res.send(challenge)
@@ -68,6 +69,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
     if (isBotMessage) return await onBotMessage({ event, edited: false })
     if (isEditedUserMessage) return await onUserMessage({ event, edited: true })
     if (isEditedBotMessage) return await onBotMessage({ event, edited: true })
+    if (isRemovedMessage) return await onRemovedMessage({ event })
     if (isProbablyUnfurledLink) return await onAttachments(event.message.attachments)
 
     console.warn('DID NOT UNDERSTAND SLACK EVENT:', JSON.stringify(slackEvent))
@@ -77,7 +79,7 @@ app.post('/', bodyParser.json(), async (req, res) => {
   }
 })
 
-async function onMessage({ nameStr, profileImage, event, edited }) {
+async function onMessage({ nameStr, profileImage, event, edited, removed }) {
   if (DEBUG) console.log(`[onMessage] Edited=${edited}`)
 
   const files = edited ? event.message.files : event.files
@@ -91,7 +93,11 @@ async function onMessage({ nameStr, profileImage, event, edited }) {
     .filter(({ filetype: type }) => type === 'png' || type === 'gif' || type === 'jpg')
     .map(async ({ url_private }) => await getPrivateImage(url_private)))
 
-  const text = edited ? event.message.text : event.text
+  const text = edited
+    ? event.message.text
+    : removed
+      ? event.previous_message.text
+      : event.text
   const clientMessageId = edited ? event.message.client_msg_id : event.client_msg_id
   const isNewMessage = !previousMessages[clientMessageId]
   const hasTextUpdated = !isNewMessage && previousMessages[clientMessageId].text !== text
@@ -108,7 +114,7 @@ async function onMessage({ nameStr, profileImage, event, edited }) {
   // - it's too long since the original message(and poster) was shown [this is usually behaviors of Slack apps, so it's a way to shown who posted something, even though it's tehnically just an 'update' to a message]
   if (hasTextUpdated || !hasUpdatedRecently) {
     const prettifiedText = await replaceUserIds(replaceChannelIds(replaceUrls(replaceBold(emojify(text)))))
-    console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${prettifiedText} ${ (text && edited) ? chalk.bgWhite.black('(edited)') : ''}`)
+    console.log(`${profileImageAsStr}[${channelToStr(channel.name)} ${nameStr}] ${prettifiedText} ${ (text && edited) ? chalk.bgWhite.black('(edited)') : ''} ${ removed ? chalk.bgWhite.black('(removed)') : ''}`)
   }
 
   // if (hasAttachments && !hasTextUpdated) await onAttachments(attachments)
@@ -135,6 +141,16 @@ async function onUserMessage({ event, edited }) {
   const nameStr = userToStr(user.name)
 
   await onMessage({ nameStr, profileImage, event, edited })
+}
+
+async function onRemovedMessage({ event }) {
+  if (DEBUG) console.log(`[onRemovedMessage]`)
+
+  const { user } = await getUser(event.previous_message.user)
+  const { data: profileImage } = await getPublicImage(user.profile.image_24 || user.profile.image_36 || user.profile.image_48 || user.profile.image_64 || user.profile.image_72)
+  const nameStr = userToStr(user.name)
+
+  await onMessage({ nameStr, profileImage, event, removed: true })
 }
 
 async function onAttachments(attachments) {
