@@ -211,8 +211,14 @@ app.listen(3030)
 
 forwardForever(process.env.FORWARDER_NAME, 3030)
 
-process.on('uncaughtException', err => console.log('uncaughtException:', err))
-process.on('unhandledRejection', err => console.log('unhandledRejection:', err))
+function onerror(err) {
+  const shouldIgnoreError = err.message.indexOf('connection refused: localtunnel.me') > -1
+  if (shouldIgnoreError) return
+  console.error(`Uncaught error: ${err.stack}`)
+}
+
+process.on('uncaughtException', onerror)
+process.on('unhandledRejection', onerror)
 
 const isRunningInNodemon = !process.stdin.setRawMode
 

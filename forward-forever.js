@@ -1,13 +1,28 @@
 const localtunnel = require('localtunnel')
-const EventEmitter = require('events')
 
-module.exports = (subdomain, localPort) => {
-  const that = new EventEmitter()
+module.exports = startTunnel
+
+function startTunnel(subdomain, localPort) {
+  let firstConnection = true
+
   const tunnel = localtunnel(localPort, { subdomain }, (err, tunnel) => {
-    err && console.error(`[FORWARDER] Error: ${err}`)
-    that.emit('ready', tunnel.url)
+    if (err) return console.error(`[FORWARDER] Error while starting tunnel ${tunnel}. You will probably need to restart. ${err.stack}`)
+    if (!firstConnection) console.log('[FORWARDER] Tunnel restarted. Now forwarding Slack messages again')
+    firstConnection = false
   })
-  tunnel.on('close', () => console.error('[FORWARDER] Forwarded messages from Slack may no longer reach you. Please restart Slack Team Watcher'))
 
-  return that
+  function shouldRestart (err) {
+    if (err) console.error(`[FORWARDER] Error from forwarder: ${err.message}`)
+    tunnel.close()
+  }
+
+  tunnel.once('error', shouldRestart)
+  tunnel.once('dead', shouldRestart)
+  tunnel.once('close', () => {
+    tunnel.off('error', shouldRestart)
+    tunnel.off('dead', shouldRestart)
+
+    console.error('[FORWARDER] Tunnel closed. Trying to restart it')
+    startTunnel(subdomain, localPort)
+  })
 }
