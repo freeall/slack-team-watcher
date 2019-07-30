@@ -11,8 +11,10 @@ function startTunnel(subdomain, localPort) {
     firstConnection = false
   })
 
-  function shouldRestart (err) {
-    if (err) console.error(`[FORWARDER] Error from forwarder: ${err.message}`)
+  function shouldRestart(err) {
+    const shouldIgnore = err && err.message && err.message.indexOf('connection refused: localtunnel.me') > -1
+
+    if (err && !shouldIgnore) console.error(`[FORWARDER] Error from forwarder: ${err.message}`)
     tunnel.close()
   }
 
