@@ -212,8 +212,11 @@ app.listen(3030)
 forwardForever(process.env.FORWARDER_NAME, 3030)
 
 function onerror(err) {
-  const shouldIgnoreError = err.message.indexOf('connection refused: localtunnel.me') > -1
-  if (shouldIgnoreError) return
+  const isConnectionRefused = err && err.message && err.message.indexOf('connection refused: localtunnel.me') > -1
+  const isTunnelOffline = err && err.message && err.message.indexOf('tunnel server offline') > -1
+  const shouldIgnore = isConnectionRefused || isTunnelOffline
+  if (shouldIgnore) return
+
   console.error(`Uncaught error: ${err.stack}`)
 }
 
