@@ -10,6 +10,7 @@ const stringReplaceAsync = require('string-replace-async')
 const chalk = require('chalk')
 const { emojify } = require('node-emoji')
 const forwardForever = require('./forward-forever')
+const cursor = require('cli-cursor')
 
 const RE_USER = /<@U[A-Z0-9]*>/g
 const RE_CHANNEL = /<#C[^\s]*>/g
@@ -228,31 +229,38 @@ const isRunningInNodemon = !process.stdin.setRawMode
 if (isRunningInNodemon) return
 
 // https://stackoverflow.com/questions/50430908/listen-for-command-ctrl-l-signal-in-terminal
-process.stdin.currentLine = '';
-process.stdin.setRawMode(true);
+process.stdin.currentLine = ''
+process.stdin.setRawMode(true)
 process.stdin.on('data', (buf) => {
-  const charAsAscii = buf.toString().charCodeAt(0);
+  const charAsAscii = buf.toString().charCodeAt(0)
 
   switch (charAsAscii) {
     case 0x03:
-      process.kill(process.pid, 'SIGINT');
-      break;
+      process.kill(process.pid, 'SIGINT')
+      break
 
     case 0x04:
-      process.exit(0);
-      break;
+      process.exit(0)
+      break
 
     case 0x0c:
-      process.stdout.write('\033c');
-      break;
+      process.stdout.write('\033c')
+      break
 
     case 0x0d:
-      process.stdin.emit('line', process.stdin.currentLine);
-      process.stdin.currentLine = '';
-      break;
+      process.stdin.emit('line', process.stdin.currentLine)
+      process.stdin.currentLine = ''
+      break
 
     default:
-      process.stdin.currentLine += String.fromCharCode(charAsAscii);
-      break;
+      process.stdin.currentLine += String.fromCharCode(charAsAscii)
+      break
   }
-});
+})
+
+cursor.hide()
+process.on('SIGINT', () => {
+  cursor.show()
+  process.exit()
+})
+
