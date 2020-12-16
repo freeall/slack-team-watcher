@@ -29,7 +29,7 @@ const urlToStr = url => chalk.cyan.underline(url)
 const boldToStr = str => chalk.bold(str)
 const getUser = memoize(user => slack.users.info({ user }))
 const getBot = memoize(bot => slack.bots.info({ bot }))
-const getChannel = memoize(channel => slack.channels.info({ channel }))
+const getChannel = memoize(channel => slack.conversations.info({ channel }))
 const getPublicImage = memoize(url => axios({ url, responseType: 'arraybuffer' }))
 const getPrivateImage = memoize(url => axios({
   url,
@@ -209,7 +209,7 @@ function isIgnoredChannel(channel) {
 
 app.listen(3030)
 
-forwardForever(process.env.FORWARDER_NAME, 3030)
+forwardForever(process.env.FORWARDER_NAME, 3030).then(() => console.log('Slack Team Watcher succesfully started'))
 
 function onerror(err) {
   const isConnectionRefused = err && err.message && err.message.indexOf('connection refused: localtunnel.me') > -1

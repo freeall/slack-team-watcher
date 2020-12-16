@@ -2,13 +2,10 @@ const localtunnel = require('localtunnel')
 
 module.exports = startTunnel
 
-function startTunnel(subdomain, localPort) {
+async function startTunnel(subdomain, localPort) {
   let firstConnection = true
 
-  const tunnel = localtunnel(localPort, { subdomain }, (err, tunnel) => {
-    if (!err) return
-    console.error(`[FORWARDER] Error while starting tunnel ${tunnel}. You will probably need to restart. ${err.stack}`)
-  })
+  const tunnel = await localtunnel(localPort, { subdomain })
 
   function shouldRestart(err) {
     const isConnectionRefused = err && err.message && err.message.indexOf('connection refused: localtunnel.me') > -1
@@ -33,4 +30,6 @@ function startTunnel(subdomain, localPort) {
     console.error('[FORWARDER] Tunnel closed. Trying to restart it')
     startTunnel(subdomain, localPort)
   })
+
+  return tunnel
 }

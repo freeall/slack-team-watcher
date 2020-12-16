@@ -5,6 +5,7 @@ const forwardForever = require('./forward-forever')
 const forwarderName = `stw-${Math.random().toString().substr(2)}`
 const app = express()
 const bodyParser = require('body-parser')
+const { start } = require('repl')
 
 app.post('/', bodyParser.json(), async (req, res) => {
   const { body: slackEvent } = req
@@ -37,11 +38,12 @@ require('load-environment')
 console.log('> Created local.json')
 console.log('> Waiting for forwarding tunnel...')
 
-const forwarder = forwardForever(process.env.FORWARDER_NAME, 3030)
-forwarder.on('ready', () => {
+start()
+
+forwardForever(process.env.FORWARDER_NAME, 3030).then(() => {
   console.log('> Tunnel ready')
   console.log('>')
-  console.log(`> Now continue with the installation instructions, and use this Request URL when asked: https://${forwarderName}.localtunnel.me`)
+  console.log(`> Now continue with the installation instructions, and use this Request URL when asked: https://${forwarderName}.loca.lt`)
   console.log('>')
   console.log('> When Slack sends verification message this setup will exit...')
 })
