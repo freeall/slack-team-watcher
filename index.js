@@ -210,7 +210,10 @@ function isIgnoredChannel(channel) {
 
 app.listen(3030)
 
-forwardForever(process.env.FORWARDER_NAME, 3030).then(() => console.log('Slack Team Watcher succesfully started'))
+forwardForever(process.env.FORWARDER_NAME, 3030).then(() => {
+  console.log('Slack Team Watcher succesfully started')
+  console.log('If no messages are coming in, go to https://api.slack.com/apps -> Slack Team Watcher -> Event Subscription, and turn it off and on again')
+})
 
 function onerror(err) {
   const isConnectionRefused = err && err.message && err.message.indexOf('connection refused: localtunnel.me') > -1
