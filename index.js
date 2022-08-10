@@ -122,7 +122,7 @@ async function onMessage({ nameStr, profileImage, event, edited, removed }) {
 
   // if (hasAttachments && !hasTextUpdated) await onAttachments(attachments)
   if (hasAttachments) await onAttachments(attachments)
-  if (hasImages && !edited) images.forEach(({ data: image }) => imgcat(image, {log: true}))
+  if (hasImages && !edited) images.forEach(({ data: image }) => imgcat(image, { log: true, width: '50%', height: '50%' }))
 }
 
 async function onBotMessage({ event, edited }) {
@@ -179,7 +179,7 @@ async function onAttachments(attachments) {
     if (hasText && hasThumb) console.log(`     ${prettifiedText}`)
     if (hasText && !hasThumb) console.log(bar + prettifiedText)
 
-    if (hasImage) imgcat(attachment.image, {log: true})
+    if (hasImage) imgcat(attachment.image, { log: true, width: '50%', height: '50%'  })
   })
 }
 
