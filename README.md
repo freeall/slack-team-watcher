@@ -30,3 +30,8 @@ While there are quite some steps it only takes 1-2 minutes to install.
 11. Run `npm run start`
 
 Now you should be able to see the messages coming in 🤡
+
+## If Slack Team Watcher stops working after a while
+
+Sometimes if you've had Slack Team Watcher turned off too long Slack will stop sending events to you. In that case go to https://api.slack.com/apps, find `Slack Team Watcher`, go to `Event Subscriptions` and turn it off and on again.
+
