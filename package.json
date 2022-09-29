@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@slack/web-api": "^6.7.2",
-    "axios": "^0.18.1",
+    "axios": "^0.21.2",
     "body-parser": "^1.19.0",
     "chalk": "^2.4.2",
     "cli-cursor": "^3.1.0",
